@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SiAbsen — Sistem Absensi Karyawan</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --card-glow: 0 0 40px rgba(0,212,255,0.04);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── LAYOUT ── */
+  .wrapper { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 260px; flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh;
+  }
+  .sidebar-logo {
+    padding: 24px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .logo-text { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent); }
+
+  .sidebar-nav { padding: 16px 12px; flex: 1; }
+  .nav-label { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; padding: 0 8px; margin: 16px 0 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px;
+    font-size: 14px; font-weight: 500; color: var(--muted);
+    cursor: pointer; transition: all .2s; margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(0,212,255,0.1); color: var(--accent); }
+  .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
+
+  .sidebar-footer {
+    padding: 16px 20px; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--muted);
+  }
+
+  /* ── MAIN ── */
+  .main { flex: 1; display: flex; flex-direction: column; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 32px; border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-title { font-size: 16px; font-weight: 700; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; color: var(--accent);
+    background: rgba(0,212,255,0.08);
+    padding: 6px 12px; border-radius: 8px;
+    border: 1px solid rgba(0,212,255,0.15);
+  }
+
+  /* ── CONTENT ── */
+  .content { padding: 32px; flex: 1; }
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* ── STAT CARDS ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+    position: relative; overflow: hidden;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: var(--card-glow); }
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 80px; height: 80px; border-radius: 50%;
+    transform: translate(30px, -30px);
+  }
+  .stat-card.blue::before { background: radial-gradient(circle, rgba(0,212,255,0.15), transparent 70%); }
+  .stat-card.purple::before { background: radial-gradient(circle, rgba(124,58,237,0.15), transparent 70%); }
+  .stat-card.green::before { background: radial-gradient(circle, rgba(16,185,129,0.15), transparent 70%); }
+  .stat-card.red::before { background: radial-gradient(circle, rgba(239,68,68,0.15), transparent 70%); }
+  .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 8px; }
+  .stat-value { font-size: 32px; font-weight: 800; font-family: 'JetBrains Mono'; }
+  .stat-card.blue .stat-value { color: var(--accent); }
+  .stat-card.purple .stat-value { color: #a78bfa; }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.red .stat-value { color: var(--red); }
+
+  /* ── SECTION TITLE ── */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .section-title::before { content: ''; width: 3px; height: 18px; background: var(--accent); border-radius: 2px; }
+
+  /* ── QUICK ABSEN ── */
+  .quick-absen {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; margin-bottom: 24px;
+  }
+  .absen-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  
+  /* ── FORM ELEMENTS ── */
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-control {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    color: var(--text); font-family: 'Sora'; font-size: 14px;
+    outline: none; transition: border-color .2s, box-shadow .2s;
+    min-width: 200px;
+  }
+  .form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
+  select.form-control option { background: var(--surface); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 10px 20px; border: none; border-radius: 10px;
+    font-family: 'Sora'; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all .2s; white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #00b8d9; transform: translateY(-1px); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-success { background: var(--green); color: #fff; }
+  .btn-success:hover { background: #059669; }
+  .btn-warning { background: var(--yellow); color: #000; }
+  .btn-warning:hover { background: #d97706; }
+  .btn-ghost {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 12px 16px; text-align: left;
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  tbody td { padding: 14px 16px; font-size: 14px; }
+  .td-nik { font-family: 'JetBrains Mono'; font-size: 12px; color: var(--muted); }
+  .td-time { font-family: 'JetBrains Mono'; font-size: 13px; color: var(--accent); }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+  .badge-hadir { background: rgba(16,185,129,0.15); color: var(--green); }
+  .badge-hadir::before { background: var(--green); }
+  .badge-terlambat { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .badge-terlambat::before { background: var(--yellow); }
+  .badge-izin { background: rgba(124,58,237,0.15); color: #a78bfa; }
+  .badge-izin::before { background: #a78bfa; }
+  .badge-alpha { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-alpha::before { background: var(--red); }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    padding: 48px; text-align: center; color: var(--muted);
+    font-size: 14px;
+  }
+  .empty .icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 28px; width: 460px; max-width: 95vw;
+    transform: scale(.95); transition: transform .2s;
+  }
+  .modal-overlay.open .modal { transform: scale(1); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .modal-title { font-size: 18px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid .full { grid-column: 1 / -1; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 20px;
+    font-size: 14px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px;
+    transform: translateY(80px); opacity: 0;
+    transition: all .3s cubic-bezier(.34,1.56,.64,1);
+    max-width: 360px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+  #toast.warning { border-color: var(--yellow); color: var(--yellow); }
+
+  /* ── FILTER BAR ── */
+  .filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .sidebar { width: 56px; }
+    .sidebar .logo-text, .sidebar .nav-item span:not(.icon), .nav-label, .sidebar-footer { display: none; }
+    .sidebar-logo { padding: 12px; justify-content: center; }
+    .content { padding: 16px; }
+    .topbar { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">📋</div>
+      <div class="logo-text">Si<span>Absen</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Menu</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="icon">🏠</span><span>Dashboard</span>
+      </div>
+      <div class="nav-item" onclick="showPage('absensi')">
+        <span class="icon">✅</span><span>Absensi</span>
+      </div>
+      <div class="nav-item" onclick="showPage('karyawan')">
+        <span class="icon">👥</span><span>Karyawan</span>
+      </div>
+      <div class="nav-item" onclick="showPage('rekap')">
+        <span class="icon">📊</span><span>Rekap</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">v1.0 © 2025</div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-right">
+        <div class="clock" id="clock">--:--:--</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- ── DASHBOARD ── -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="stat-label">Total Karyawan</div>
+            <div class="stat-value" id="stat-total">—</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Hadir Hari Ini</div>
+            <div class="stat-value" id="stat-hadir">—</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-label">Izin Hari Ini</div>
+            <div class="stat-value" id="stat-izin">—</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Belum Absen</div>
+            <div class="stat-value" id="stat-belum">—</div>
+          </div>
+        </div>
+
+        <div class="quick-absen">
+          <div class="section-header">
+            <div class="section-title">Absen Cepat</div>
+          </div>
+          <div class="absen-form">
+            <div class="form-group">
+              <label class="form-label">Pilih Karyawan</label>
+              <select class="form-control" id="quick-karyawan"></select>
+            </div>
+            <button class="btn btn-success" onclick="doAbsenMasuk()">🟢 Masuk</button>
+            <button class="btn btn-danger" onclick="doAbsenKeluar()">🔴 Keluar</button>
+            <button class="btn btn-warning" onclick="openIzinModal()">📝 Izin</button>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <div class="section-title">Absensi Hari Ini</div>
+          <button class="btn btn-ghost btn-sm" onclick="loadAbsensiHariIni()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Karyawan</th>
+                <th>Jabatan</th>
+                <th>Jam Masuk</th>
+                <th>Jam Keluar</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="today-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── ABSENSI ── -->
+      <div class="page" id="page-absensi">
+        <div class="filter-bar">
+          <div class="form-group">
+            <label class="form-label">Tanggal</label>
+            <input type="date" class="form-control" id="filter-tanggal" style="min-width:160px">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Karyawan</label>
+            <select class="form-control" id="filter-karyawan"><option value="">Semua Karyawan</option></select>
+          </div>
+          <div style="align-self:flex-end">
+            <button class="btn btn-primary" onclick="loadAbsensi()">🔍 Cari</button>
+          </div>
+          <div style="align-self:flex-end; margin-left:auto">
+            <button class="btn btn-success" onclick="openAbsenModal()">+ Tambah Absensi</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Karyawan</th>
+                <th>Jam Masuk</th>
+                <th>Jam Keluar</th>
+                <th>Status</th>
+                <th>Keterangan</th>
+              </tr>
+            </thead>
+            <tbody id="absensi-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── KARYAWAN ── -->
+      <div class="page" id="page-karyawan">
+        <div class="section-header">
+          <div class="section-title">Data Karyawan</div>
+          <button class="btn btn-primary" onclick="openKaryawanModal()">+ Tambah Karyawan</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>NIK</th><th>Nama</th><th>Jabatan</th><th>Departemen</th><th>Status</th><th>Aksi</th></tr>
+            </thead>
+            <tbody id="karyawan-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── REKAP ── -->
+      <div class="page" id="page-rekap">
+        <div class="filter-bar">
+          <div class="form-group">
+            <label class="form-label">Bulan</label>
+            <input type="month" class="form-control" id="filter-bulan" style="min-width:160px">
+          </div>
+          <div style="align-self:flex-end">
+            <button class="btn btn-primary" onclick="loadRekap()">📊 Tampilkan</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>NIK</th><th>Nama</th><th>Departemen</th><th>Hadir</th><th>Terlambat</th><th>Izin</th><th>Alpha</th><th>Total Hari</th></tr>
+            </thead>
+            <tbody id="rekap-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL KARYAWAN -->
+<div class="modal-overlay" id="modal-karyawan">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-karyawan-title">Tambah Karyawan</div>
+      <button class="modal-close" onclick="closeModal('modal-karyawan')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">NIK</label>
+        <input class="form-control" id="k-nik" placeholder="K001">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Lengkap</label>
+        <input class="form-control" id="k-nama" placeholder="Nama Karyawan">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Jabatan</label>
+        <input class="form-control" id="k-jabatan" placeholder="Developer">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Departemen</label>
+        <input class="form-control" id="k-dept" placeholder="IT">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-karyawan')">Batal</button>
+      <button class="btn btn-primary" onclick="saveKaryawan()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IZIN -->
+<div class="modal-overlay" id="modal-izin">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Pengajuan Izin</div>
+      <button class="modal-close" onclick="closeModal('modal-izin')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label class="form-label">Karyawan</label>
+        <select class="form-control" id="izin-karyawan"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tanggal</label>
+        <input type="date" class="form-control" id="izin-tanggal">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Keterangan</label>
+        <input class="form-control" id="izin-ket" placeholder="Sakit, Keperluan keluarga...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-izin')">Batal</button>
+      <button class="btn btn-warning" onclick="saveIzin()">Ajukan Izin</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ABSENSI MANUAL -->
+<div class="modal-overlay" id="modal-absen">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Tambah Absensi Manual</div>
+      <button class="modal-close" onclick="closeModal('modal-absen')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label class="form-label">Karyawan</label>
+        <select class="form-control" id="absen-karyawan"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Aksi</label>
+        <select class="form-control" id="absen-aksi">
+          <option value="masuk">Absen Masuk</option>
+          <option value="keluar">Absen Keluar</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-absen')">Batal</button>
+      <button class="btn btn-primary" onclick="saveAbsenManual()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const API = 'http://localhost:3000/api';
+let karyawanList = [];
+let editKaryawanId = null;
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('id-ID');
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  const icons = { success: '✅', error: '❌', warning: '⚠️' };
+  el.innerHTML = `<span>${icons[type]}</span> ${msg}`;
+  el.className = `show ${type}`;
+  setTimeout(() => el.className = '', 3000);
+}
+
+// ── API helper ────────────────────────────────────────────────────────────
+async function api(endpoint, method = 'GET', body = null) {
+  try {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + endpoint, opts);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    return data;
+  } catch (e) {
+    toast(e.message || 'Gagal menghubungi server', 'error');
+    throw e;
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+const pageTitles = {
+  dashboard: 'Dashboard', absensi: 'Absensi',
+  karyawan: 'Data Karyawan', rekap: 'Rekap Absensi'
+};
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick').includes(name)) n.classList.add('active');
+  });
+  document.getElementById('pageTitle').textContent = pageTitles[name];
+  if (name === 'dashboard') { loadStats(); loadAbsensiHariIni(); }
+  if (name === 'karyawan') loadKaryawan();
+  if (name === 'absensi') loadAbsensi();
+  if (name === 'rekap') loadRekap();
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ── Populate selects ──────────────────────────────────────────────────────
+function populateSelects() {
+  const ids = ['quick-karyawan', 'filter-karyawan', 'izin-karyawan', 'absen-karyawan'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const hasAll = id.includes('filter');
+    el.innerHTML = hasAll ? '<option value="">Semua Karyawan</option>' : '';
+    karyawanList.forEach(k => {
+      el.innerHTML += `<option value="${k.id}">${k.nama} (${k.nik})</option>`;
+    });
+  });
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+async function loadStats() {
+  const d = await api('/stats');
+  document.getElementById('stat-total').textContent = d.data.total_karyawan;
+  document.getElementById('stat-hadir').textContent = d.data.hadir_hari_ini;
+  document.getElementById('stat-izin').textContent = d.data.izin_hari_ini;
+  document.getElementById('stat-belum').textContent = d.data.belum_absen;
+}
+
+// ── Absensi Hari Ini ──────────────────────────────────────────────────────
+async function loadAbsensiHariIni() {
+  const today = new Date().toISOString().split('T')[0];
+  const d = await api(`/absensi?tanggal=${today}`);
+  const tbody = document.getElementById('today-table');
+  if (!d.data.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty"><div class="icon">🕐</div>Belum ada absensi hari ini</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = d.data.map(a => `
+    <tr>
+      <td><strong>${a.karyawan?.nama || '-'}</strong><br><span class="td-nik">${a.karyawan?.nik || ''}</span></td>
+      <td>${a.karyawan?.jabatan || '-'}</td>
+      <td><span class="td-time">${a.jam_masuk || '—'}</span></td>
+      <td><span class="td-time">${a.jam_keluar || '—'}</span></td>
+      <td><span class="badge badge-${a.status}">${a.status}</span></td>
+    </tr>`).join('');
+}
+
+// ── Quick Absen ───────────────────────────────────────────────────────────
+async function doAbsenMasuk() {
+  const id = document.getElementById('quick-karyawan').value;
+  if (!id) return toast('Pilih karyawan terlebih dahulu', 'warning');
+  const d = await api('/absensi/masuk', 'POST', { karyawan_id: id });
+  toast(d.message);
+  loadStats(); loadAbsensiHariIni();
+}
+
+async function doAbsenKeluar() {
+  const id = document.getElementById('quick-karyawan').value;
+  if (!id) return toast('Pilih karyawan terlebih dahulu', 'warning');
+  const d = await api('/absensi/keluar', 'POST', { karyawan_id: id });
+  toast(d.message);
+  loadStats(); loadAbsensiHariIni();
+}
+
+// ── Izin ──────────────────────────────────────────────────────────────────
+function openIzinModal() {
+  document.getElementById('izin-tanggal').value = new Date().toISOString().split('T')[0];
+  openModal('modal-izin');
+}
+
+async function saveIzin() {
+  const id = document.getElementById('izin-karyawan').value;
+  const tanggal = document.getElementById('izin-tanggal').value;
+  const keterangan = document.getElementById('izin-ket').value;
+  if (!id) return toast('Pilih karyawan', 'warning');
+  const d = await api('/absensi/izin', 'POST', { karyawan_id: id, tanggal, keterangan });
+  toast(d.message);
+  closeModal('modal-izin');
+  loadStats(); loadAbsensiHariIni();
+}
+
+// ── Absensi Manual ────────────────────────────────────────────────────────
+function openAbsenModal() { openModal('modal-absen'); }
+async function saveAbsenManual() {
+  const id = document.getElementById('absen-karyawan').value;
+  const aksi = document.getElementById('absen-aksi').value;
+  if (!id) return toast('Pilih karyawan', 'warning');
+  const endpoint = aksi === 'masuk' ? '/absensi/masuk' : '/absensi/keluar';
+  const d = await api(endpoint, 'POST', { karyawan_id: id });
+  toast(d.message);
+  closeModal('modal-absen');
+  loadAbsensi();
+}
+
+// ── Absensi List ──────────────────────────────────────────────────────────
+async function loadAbsensi() {
+  const tanggal = document.getElementById('filter-tanggal').value;
+  const kId = document.getElementById('filter-karyawan').value;
+  let qs = [];
+  if (tanggal) qs.push(`tanggal=${tanggal}`);
+  if (kId) qs.push(`karyawan_id=${kId}`);
+  const d = await api('/absensi?' + qs.join('&'));
+  const tbody = document.getElementById('absensi-table');
+  if (!d.data.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">📭</div>Tidak ada data absensi</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = d.data.sort((a,b) => b.tanggal.localeCompare(a.tanggal)).map(a => `
+    <tr>
+      <td>${a.tanggal}</td>
+      <td><strong>${a.karyawan?.nama || '-'}</strong><br><span class="td-nik">${a.karyawan?.nik || ''}</span></td>
+      <td><span class="td-time">${a.jam_masuk || '—'}</span></td>
+      <td><span class="td-time">${a.jam_keluar || '—'}</span></td>
+      <td><span class="badge badge-${a.status}">${a.status}</span></td>
+      <td style="color:var(--muted);font-size:13px">${a.keterangan || '—'}</td>
+    </tr>`).join('');
+}
+
+// ── Karyawan ──────────────────────────────────────────────────────────────
+async function loadKaryawan() {
+  const d = await api('/karyawan');
+  karyawanList = d.data;
+  populateSelects();
+  const tbody = document.getElementById('karyawan-table');
+  tbody.innerHTML = karyawanList.map(k => `
+    <tr>
+      <td class="td-nik">${k.nik}</td>
+      <td><strong>${k.nama}</strong></td>
+      <td>${k.jabatan}</td>
+      <td>${k.departemen}</td>
+      <td><span class="badge ${k.aktif ? 'badge-hadir' : 'badge-alpha'}">${k.aktif ? 'Aktif' : 'Nonaktif'}</span></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="editKaryawan(${k.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="hapusKaryawan(${k.id})">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+
+function openKaryawanModal(id = null) {
+  editKaryawanId = id;
+  document.getElementById('modal-karyawan-title').textContent = id ? 'Edit Karyawan' : 'Tambah Karyawan';
+  if (!id) { ['k-nik','k-nama','k-jabatan','k-dept'].forEach(i => document.getElementById(i).value = ''); }
+  openModal('modal-karyawan');
+}
+
+function editKaryawan(id) {
+  const k = karyawanList.find(x => x.id === id);
+  if (!k) return;
+  editKaryawanId = id;
+  document.getElementById('k-nik').value = k.nik;
+  document.getElementById('k-nama').value = k.nama;
+  document.getElementById('k-jabatan').value = k.jabatan;
+  document.getElementById('k-dept').value = k.departemen;
+  document.getElementById('modal-karyawan-title').textContent = 'Edit Karyawan';
+  openModal('modal-karyawan');
+}
+
+async function saveKaryawan() {
+  const body = {
+    nik: document.getElementById('k-nik').value.trim(),
+    nama: document.getElementById('k-nama').value.trim(),
+    jabatan: document.getElementById('k-jabatan').value.trim(),
+    departemen: document.getElementById('k-dept').value.trim(),
+  };
+  if (!body.nik || !body.nama || !body.jabatan || !body.departemen)
+    return toast('Semua field wajib diisi', 'warning');
+  if (editKaryawanId) {
+    await api(`/karyawan/${editKaryawanId}`, 'PUT', body);
+    toast('Data karyawan berhasil diupdate');
+  } else {
+    await api('/karyawan', 'POST', body);
+    toast('Karyawan baru berhasil ditambahkan');
+  }
+  closeModal('modal-karyawan');
+  loadKaryawan();
+}
+
+async function hapusKaryawan(id) {
+  if (!confirm('Yakin ingin menghapus karyawan ini?')) return;
+  await api(`/karyawan/${id}`, 'DELETE');
+  toast('Karyawan berhasil dihapus');
+  loadKaryawan();
+}
+
+// ── Rekap ─────────────────────────────────────────────────────────────────
+async function loadRekap() {
+  const bulan = document.getElementById('filter-bulan').value ||
+    new Date().toISOString().substring(0, 7);
+  const d = await api(`/rekap?bulan=${bulan}`);
+  const tbody = document.getElementById('rekap-table');
+  tbody.innerHTML = d.data.map(r => `
+    <tr>
+      <td class="td-nik">${r.karyawan.nik}</td>
+      <td><strong>${r.karyawan.nama}</strong></td>
+      <td>${r.karyawan.departemen}</td>
+      <td style="color:var(--green);font-weight:700">${r.hadir}</td>
+      <td style="color:var(--yellow);font-weight:700">${r.terlambat}</td>
+      <td style="color:#a78bfa;font-weight:700">${r.izin}</td>
+      <td style="color:var(--red);font-weight:700">${r.alpha}</td>
+      <td style="color:var(--muted)">${r.total}</td>
+    </tr>`).join('');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+async function init() {
+  const d = await api('/karyawan');
+  karyawanList = d.data;
+  populateSelects();
+  document.getElementById('filter-bulan').value = new Date().toISOString().substring(0, 7);
+  document.getElementById('filter-tanggal').value = new Date().toISOString().split('T')[0];
+  loadStats();
+  loadAbsensiHariIni();
+}
+
+init();
+</script>
+</body>
+</html>
